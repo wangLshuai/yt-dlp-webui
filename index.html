@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <link href="static/styles/style.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans" ,rel="stylesheet" />
+    <link rel="icon" , href="static/images/favicon.ico" , type="image/x-icon" />
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>yt-dlp Web UI</title>
+</head>
+
+<body>
+    <h1>yt-dlp Web UI</h1>
+    <!-- <img src="static/images/firefox.jpg" alt="my test imgae" /> -->
+    <form id="media-url-form" action="parse" method="post">
+        <div id="url-group">
+            <input type="text" id="media-url-input" name="url" placeholder="video url" required>
+        </div>
+        <div id="select-group">
+            <div class="select-item">
+                <label>quailty</label>
+                <select id="quality">
+                    <option value="best" selected>best</option>
+                    <option value="2k">2k</option>
+                    <option value="1080">1080</option>
+                    <option value="720">720p</option>
+                    <option value="480">480p</option>
+                    <option value="360">360p</option>
+                    <option value="240">240p</option>
+                </select>
+            </div>
+            <div class="select-item">
+                <label>format</label>
+                <select id="format">
+                    <option value="any">any</option>
+                    <option value="video">video ony</option>
+                    <option value="avdio">avdio</option>
+                </select>
+            </div>
+            <div class="select-item">
+                <label>auto</label>
+                <select id="auto">
+                    <option value="yes" selected>yes</option>
+                    <option value="no">no</option>
+                </select>
+            </div>
+            <div class="select-item">
+                <button type="submit" id="add-button">ADD</button>
+            </div>
+        </div>
+    </form>
+
+
+    <hr class="hr-board">
+    <span>downloading</span>
+
+    <hr>
+
+    <div class="download-head">
+        <label id="video">video</label>
+        <label id="speed">speed</label>
+        <label id="eta">eta</label>
+    </div>
+
+    <div id="progress-container">
+
+    </div>
+
+    <hr>
+
+
+    <form id="media-list-form" action="/submit" method="post">
+        <div class="checkbox-group" id="media-list-container">
+            <!-- <p><input type="checkbox" name="interest" value="Musci">Music</p>
+            <p><input type="checkbox" name="interext" value="Sports">Sports</p>
+            <p><input type="checkbox" name="interext" value="Sports">Sports</p> -->
+        </div>
+    </form>
+
+    <hr class="hr-board">
+    <span>completed</span>
+
+    <script src="/static/scripts/main.js"> </script>
+</body>
+
+</html>
