@@ -64,13 +64,10 @@ async def websocket_progress(request):
     try:
         async for msg in ws:
             if msg.type == web.WSMsgType.TEXT:
-                # 接收客户端发送的JSON数据
                 data = msg.json()
                 print(f"Received message: {data}")
 
-                # 回复客户端
-                # response_data = {'type': 'response', 'content': f"Server received your '{data['content']}'"}
-                # await ws.send_json(response_data)
+  
             elif msg.type == web.WSMsgType.ERROR:
                 print(f"ws connection closed with exception {ws.exception()}")
     finally:
@@ -82,32 +79,44 @@ async def websocket_progress(request):
 
 
 def sync_progress_hook(progress):
+    # print("\n\nkeys---------------------------------------------------")
     # print(progress.keys())
+    # print("\nprogresss+++++++++++++++++++++++++++++++++++++++++++++")
     # print(progress)
+    # print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n\n")
     # print("\n\n")
     # print(progress['info_dict'].keys())
     m = {}
-    m["id"] = progress["info_dict"]["id"]
-    m["downloaded_bytes"] = progress.get("downloaded_bytes")
-    m["filename"] = progress["filename"]
-    m["title"] = progress["info_dict"]["title"]
-    m["total_bytes"] = progress["total_bytes"]
+    if progress.get("status") == "error":
+        m = progress
+    elif progress.get('status') == "downloading":
+        m["id"] = progress["info_dict"]["id"]
+        m["downloaded_bytes"] = progress.get("downloaded_bytes")
+        m["filename"] = progress["filename"]
+        m["title"] = progress["info_dict"]["title"]
+        m["total_bytes"] = progress["total_bytes"]
 
-    m["speed"] = progress.get("speed")
-    m["filesize"] = progress["info_dict"]["filesize"]
-    m["status"] = progress["status"]
-    m["_percent_str"] = re.sub(r"\u001b\[[0-9;]*m", "", progress["_percent_str"])
-    if progress.get("eta"):
-        m["eta"] = progress["eta"]
-    else:
-        m["eta"] = 0
+        if  progress.get("_speed_str"):
+            m["speed"] = progress.get("_speed_str")
+        else:
+            m["speed"] = "0"
+        m["filesize"] = progress["info_dict"]["filesize"]
+        m["status"] = progress["status"]
+        m["percent"] = re.sub(r"\u001b\[[0-9;]*m", "", progress["_percent_str"])
+        if progress.get("eta"):
+            m["eta"] = progress["eta"]
+        else:
+            m["eta"] = 0
 
-    print(
-        f'\r {m["filename"]} {m["_percent_str"]} {m["speed"]} {m["eta"]}         ',
-        end="",
-    )
-    if progress["status"] == "finished":
+        print(
+            f'\r {m["filename"]} {m["percent"]} {m["speed"]} {m["eta"]}         ',
+            end="",
+        )
+    elif progress["status"] == "finished":
         m["status"] = "download_finished"
+        m["title"] = progress["info_dict"]["title"]
+        m['speed'] = "convert"
+            
     global server_loop
     for ws in progress_ws_list:
         asyncio.run_coroutine_threadsafe(ws.send_json(m), server_loop)
@@ -118,7 +127,7 @@ def sync_post_hook(fullname):
     filename = os.path.splitext(basename)[0]
     m = {}
     m["title"] = filename
-    m["status"] = "convert_finished"
+    m["status"] = "finished"
     print(filename, " convert finished")
     for ws in progress_ws_list:
         asyncio.run_coroutine_threadsafe(ws.send_json(m), server_loop)
@@ -153,13 +162,11 @@ app = web.Application()
 app.on_startup.append(on_startup)
 
 app.router.add_static("/static", "static")
-# 路由设置
 app.router.add_get("/", index)
 app.router.add_post("/add", add_item)
 app.router.add_get("/ws", websocket_progress)
 
 
-# 启动服务器
 async def start_server():
     global server_loop
     server_loop = asyncio.get_running_loop()

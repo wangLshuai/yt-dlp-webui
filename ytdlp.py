@@ -1,7 +1,7 @@
 import yt_dlp
 import threading
-import queue
 import concurrent.futures
+import traceback
 
 
 class Downloader(object):
@@ -41,9 +41,11 @@ class Downloader(object):
             # 尝试获取结果，如果任务正常完成，这里不会抛出异常
             result = future.result()
         except Exception as e:
-            print("Caught an exception in callback:", e)
-            # 打印完整的异常堆栈信息
-            traceback.print_exc()
+            print("Caught an exception in callback:")
+            message = {}
+            message["status"] = "error"
+            message["info"] = traceback.format_exc()
+            self.progress_hook(message)
 
     def add(self, media):
         print(f"start download: {media['url']}")
