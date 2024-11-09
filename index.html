@@ -16,15 +16,18 @@
     <form id="media-url-form" action="parse" method="post">
         <div id="url-group">
             <input type="text" id="media-url-input" name="url" placeholder="video url" required>
+            <button type="submit" id="add-button">ADD</button>
         </div>
         <div id="select-group">
             <div class="select-item">
                 <label>quailty</label>
                 <select id="quality">
-                    <option value="best" selected>best</option>
-                    <option value="2k">2k</option>
-                    <option value="1080">1080</option>
+                    <option value="4320" selected>best</option>
+                    <option value="2160">4k</option>
+                    <option value="1440">2k</option>
+                    <option value="1080">1080p</option>
                     <option value="720">720p</option>
+                    <option value="576">576p</option>
                     <option value="480">480p</option>
                     <option value="360">360p</option>
                     <option value="240">240p</option>
@@ -45,9 +48,6 @@
                     <option value="no">no</option>
                 </select>
             </div>
-            <div class="select-item">
-                <button type="submit" id="add-button">ADD</button>
-            </div>
         </div>
     </form>
 
@@ -59,6 +59,7 @@
 
     <div class="download-head">
         <label id="video">video</label>
+        <label id="size">size</label>
         <label id="speed">speed</label>
         <label id="eta">eta</label>
     </div>

@@ -67,7 +67,6 @@ async def websocket_progress(request):
                 data = msg.json()
                 print(f"Received message: {data}")
 
-  
             elif msg.type == web.WSMsgType.ERROR:
                 print(f"ws connection closed with exception {ws.exception()}")
     finally:
@@ -89,34 +88,35 @@ def sync_progress_hook(progress):
     m = {}
     if progress.get("status") == "error":
         m = progress
-    elif progress.get('status') == "downloading":
+    elif progress.get("status") == "downloading":
         m["id"] = progress["info_dict"]["id"]
         m["downloaded_bytes"] = progress.get("downloaded_bytes")
         m["filename"] = progress["filename"]
         m["title"] = progress["info_dict"]["title"]
-        m["total_bytes"] = progress["total_bytes"]
+        m["size"] = re.sub(
+            r"\u001b\[[0-9;]*m", "", progress.get("_total_bytes_str")
+        )
 
-        if  progress.get("_speed_str"):
-            m["speed"] = progress.get("_speed_str")
+        if progress.get("_speed_str"):
+            m["speed"] = re.sub(r"\u001b\[[0-9;]*m", "", progress.get("_speed_str"))
         else:
             m["speed"] = "0"
-        m["filesize"] = progress["info_dict"]["filesize"]
         m["status"] = progress["status"]
         m["percent"] = re.sub(r"\u001b\[[0-9;]*m", "", progress["_percent_str"])
-        if progress.get("eta"):
-            m["eta"] = progress["eta"]
+        if progress.get("_eta_str"):
+            m["eta"] = re.sub(r"\u001b\[[0-9;]*m", "", progress["_eta_str"])
         else:
             m["eta"] = 0
 
         print(
-            f'\r {m["filename"]} {m["percent"]} {m["speed"]} {m["eta"]}         ',
+            f'\r {m["filename"]} size {m["size"]} {m["percent"]} {m["speed"]} {m["eta"]}         ',
             end="",
         )
     elif progress["status"] == "finished":
         m["status"] = "download_finished"
         m["title"] = progress["info_dict"]["title"]
-        m['speed'] = "convert"
-            
+        m["speed"] = "convert"
+
     global server_loop
     for ws in progress_ws_list:
         asyncio.run_coroutine_threadsafe(ws.send_json(m), server_loop)

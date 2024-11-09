@@ -1,31 +1,28 @@
 
+let socket;
 function updateProgress(progressJson) {
   var progressContainer = document.getElementById('progress-container');
   var progressItem =
     progressContainer.querySelector(`[name="${progressJson['title']}"]`)
 
-    if (progressJson['status'] === 'finished') {
-      console.log('finished');
-      if (progressItem !== null)
-        progressItem.remove();
+  if (progressJson['status'] === 'finished') {
+    console.log('finished');
+    if (progressItem !== null)
+      progressItem.remove();
 
-      mediaListContainer = document.getElementById("finish-container");
+    mediaListContainer = document.getElementById("finish-container");
 
-      const newCheckbox = document.createElement('input');
-      newCheckbox.type = 'checkbox';
-  
-      const newLabel = document.createElement('label');
-      newLabel.className = 'media-label';
-      newLabel.appendChild(newCheckbox);
-      newLabel.appendChild(document.createTextNode(progressJson['title']));
-      mediaListContainer.appendChild(newLabel);
-      
+    const newCheckbox = document.createElement('input');
+    newCheckbox.type = 'checkbox';
 
+    const newLabel = document.createElement('label');
+    newLabel.className = 'media-label';
+    newLabel.appendChild(newCheckbox);
+    newLabel.appendChild(document.createTextNode(progressJson['title']));
+    mediaListContainer.appendChild(newLabel);
+    return;
 
-      return;
-
-    }
-
+  }
 
   if (progressItem === null) {
     console.log(`not founded #${progressJson['title']}`)
@@ -53,6 +50,10 @@ function updateProgress(progressJson) {
     speed.setAttribute('class', 'speed');
     progressItem.appendChild(speed);
 
+    var size = document.createElement('label');
+    size.setAttribute('class', 'size');
+    progressItem.appendChild(size);
+
     var eta = document.createElement('label');
     eta.setAttribute('class', 'eta');
     progressItem.appendChild(eta);
@@ -61,6 +62,8 @@ function updateProgress(progressJson) {
 
   var progress = progressItem.querySelector('.progress');
   progress.style.width = progressJson['percent'];
+  var size = progressItem.querySelector('.size');
+  size.textContent = progressJson['size'];
   var speed = progressItem.querySelector('.speed');
   speed.textContent = progressJson['speed'];
   var eta = progressItem.querySelector('.eta');
@@ -93,39 +96,43 @@ let urlform = document.getElementById('media-url-form')
       .catch(error => console.error('Error', error));
   })
 
+function setupWs() {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.host;
+  const path = '/ws';
 
-const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const host = window.location.host;
-const path = '/ws';
+  const ws_url = `${protocol}//${host}${path}`;
+  socket = new WebSocket(ws_url);
 
-const ws_url = `${protocol}//${host}${path}`;
-const socket = new WebSocket(ws_url);
+  // 当连接建立时触发
+  socket.addEventListener('open', function (event) {
+    // 发送一个JSON对象
+    const message = { type: 'greeting', content: 'Hello, server!' };
+    socket.send(JSON.stringify(message));
+  });
 
-// 当连接建立时触发
-socket.addEventListener('open', function (event) {
-  // 发送一个JSON对象
-  const message = { type: 'greeting', content: 'Hello, server!' };
-  socket.send(JSON.stringify(message));
-});
+  // 当从服务器接收到消息时触发
+  socket.addEventListener('message', function (event) {
+    // 解析接收到的JSON字符串
+    const data = JSON.parse(event.data);
+    if (data['status'] == 'error') {
+      alert(`server info: ${data['info']}`)
+    } else {
+      console.log(data['title'], data['percent'], data['speed'], data['eta']);
+      updateProgress(data)
+    }
+  });
 
-// 当从服务器接收到消息时触发
-socket.addEventListener('message', function (event) {
-  // 解析接收到的JSON字符串
-  const data = JSON.parse(event.data);
-  if (data['status'] == 'error') {
-    alert(`server info: ${data['info']}`)
-  } else {
-    console.log(data['title'], data['percent'], data['speed'], data['eta']);
-    updateProgress(data)
-  }
-});
+  // 当连接关闭时触发
+  socket.addEventListener('close', function (event) {
+    console.log('Connection closed');
+    setTimeout(setupWs, 1000);
+  });
 
-// 当连接关闭时触发
-socket.addEventListener('close', function (event) {
-  console.log('Connection closed');
-});
+  // 当发生错误时触发
+  socket.addEventListener('error', function (event) {
+    console.error('Error detected', event);
+  });
+}
 
-// 当发生错误时触发
-socket.addEventListener('error', function (event) {
-  console.error('Error detected', event);
-});
+setupWs();

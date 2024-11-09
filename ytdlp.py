@@ -16,7 +16,7 @@ class Downloader(object):
     def download_process(self, media):
         params = {
             "quiet": True,
-            "format": "bestvideo[height>=240]+bestaudio/bv*+ba/best",
+            "format": "wv[height>=240]+bestaudio/bv*+ba/best",
             "no_warnings": True,
             "noprogress": True,
             # 'simulate':True,
@@ -25,6 +25,8 @@ class Downloader(object):
             "post_hooks": [self.post_hook],
         }
 
+        params['format'] = f'wv[height>={media["quality"]}]+bestaudio/bv+ba/best'
+        print("format",params['format'])
         # ops = {
         #     'extract_flat':True
         # }
@@ -45,6 +47,7 @@ class Downloader(object):
             message = {}
             message["status"] = "error"
             message["info"] = traceback.format_exc()
+            print(message)
             self.progress_hook(message)
 
     def add(self, media):

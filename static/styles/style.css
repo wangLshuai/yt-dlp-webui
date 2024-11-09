@@ -52,11 +52,12 @@ h1 {
 
 #media-url-input {
     flex-grow: 1;
+    margin-right: 20px;
 }
 
 button {
-    /* width: 50px; */
-    flex-grow: 1;
+    width: 80px;
+    /* flex-grow: 1; */
     margin-right: 0px;
 }
 
@@ -66,7 +67,6 @@ button {
     width: 100%;
     min-height: 60px;
     display: flex;
-
     margin: 5px auto;
 }
 
@@ -76,7 +76,7 @@ button {
     display: flex;
     flex-wrap: wrap;
     /* border: 1px solid #000; */
-    margin:5px 10px;
+    margin: 5px 10px;
     /* flex-grow: 1; */
 }
 
@@ -99,6 +99,11 @@ select {
 #video {
     font-size: 30px;
     flex-grow: 1;
+}
+
+#size {
+    font-size: 30px;
+    width: 50px;
 }
 
 #speed {
@@ -142,7 +147,8 @@ select {
 
 .progress-item {
     display: flex;
-    align-items: center;
+    /* align-items: center; */
+    flex-wrap: wrap;
 }
 
 .title-label {
@@ -154,6 +160,8 @@ select {
     margin: 10px;
     background-color: #a2e7a4;
     display: flex;
+    height: 20px;
+    min-width: 60px;
     flex: 1;
     align-items: center;
     border-radius: 5px;
