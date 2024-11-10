@@ -25,8 +25,10 @@ class Downloader(object):
             "post_hooks": [self.post_hook],
         }
 
-        params['format'] = f'wv[height>={media["quality"]}]+bestaudio/bv+ba/best'
-        print("format",params['format'])
+        params["format"] = (
+            f'wv[height>={media["quality"]}]+bestaudio/w[height>={media["quality"]}]/bv+ba/best'
+        )
+        print("format", params["format"])
         # ops = {
         #     'extract_flat':True
         # }

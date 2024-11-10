@@ -151,7 +151,7 @@ select {
     flex-wrap: wrap;
 }
 
-.title-label {
+.filename-label {
     width: 60%;
     overflow: hidden;
 }

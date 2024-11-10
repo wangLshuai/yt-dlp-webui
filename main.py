@@ -86,16 +86,24 @@ def sync_progress_hook(progress):
     # print("\n\n")
     # print(progress['info_dict'].keys())
     m = {}
+
+    if progress.get("info_dict") and progress.get("info_dict").get("_filename"):
+        m["filename"] = os.path.splitext(
+            os.path.basename(progress["info_dict"]["_filename"])
+        )[0]
+
+        if progress.get("_total_bytes_str"):
+            m["size"] = re.sub(
+                r"\u001b\[[0-9;]*m", "", progress.get("_total_bytes_str")
+            )
+        else:
+            m["size"] = "N/A"
+
     if progress.get("status") == "error":
         m = progress
     elif progress.get("status") == "downloading":
         m["id"] = progress["info_dict"]["id"]
         m["downloaded_bytes"] = progress.get("downloaded_bytes")
-        m["filename"] = progress["filename"]
-        m["title"] = progress["info_dict"]["title"]
-        m["size"] = re.sub(
-            r"\u001b\[[0-9;]*m", "", progress.get("_total_bytes_str")
-        )
 
         if progress.get("_speed_str"):
             m["speed"] = re.sub(r"\u001b\[[0-9;]*m", "", progress.get("_speed_str"))
@@ -114,7 +122,6 @@ def sync_progress_hook(progress):
         )
     elif progress["status"] == "finished":
         m["status"] = "download_finished"
-        m["title"] = progress["info_dict"]["title"]
         m["speed"] = "convert"
 
     global server_loop
@@ -126,7 +133,7 @@ def sync_post_hook(fullname):
     basename = os.path.basename(fullname)
     filename = os.path.splitext(basename)[0]
     m = {}
-    m["title"] = filename
+    m["filename"] = filename
     m["status"] = "finished"
     print(filename, " convert finished")
     for ws in progress_ws_list:

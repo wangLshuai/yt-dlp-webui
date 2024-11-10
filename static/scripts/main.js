@@ -3,10 +3,10 @@ let socket;
 function updateProgress(progressJson) {
   var progressContainer = document.getElementById('progress-container');
   var progressItem =
-    progressContainer.querySelector(`[name="${progressJson['title']}"]`)
+    progressContainer.querySelector(`[name="${progressJson['filename']}"]`)
 
   if (progressJson['status'] === 'finished') {
-    console.log('finished');
+    console.log(`${progressJson['filename']} finished`);
     if (progressItem !== null)
       progressItem.remove();
 
@@ -18,23 +18,23 @@ function updateProgress(progressJson) {
     const newLabel = document.createElement('label');
     newLabel.className = 'media-label';
     newLabel.appendChild(newCheckbox);
-    newLabel.appendChild(document.createTextNode(progressJson['title']));
+    newLabel.appendChild(document.createTextNode(progressJson['filename']));
     mediaListContainer.appendChild(newLabel);
     return;
 
   }
 
   if (progressItem === null) {
-    console.log(`not founded #${progressJson['title']}`)
+    console.log(`not founded #${progressJson['filename']}`)
 
     progressItem = document.createElement('div');
-    progressItem.setAttribute('name', `${progressJson['title']}`);
+    progressItem.setAttribute('name', `${progressJson['filename']}`);
     progressItem.setAttribute('class', 'progress-item');
     progressContainer.appendChild(progressItem);
 
     var label = document.createElement('label');
-    label.setAttribute('class', 'title-label');
-    label.textContent = progressJson['title'];
+    label.setAttribute('class', 'filename-label');
+    label.textContent = progressJson['filename'];
     progressItem.appendChild(label);
 
 
@@ -46,13 +46,13 @@ function updateProgress(progressJson) {
     progress.setAttribute('class', 'progress');
     progressBar.appendChild(progress);
 
-    var speed = document.createElement('label');
-    speed.setAttribute('class', 'speed');
-    progressItem.appendChild(speed);
-
     var size = document.createElement('label');
     size.setAttribute('class', 'size');
     progressItem.appendChild(size);
+
+    var speed = document.createElement('label');
+    speed.setAttribute('class', 'speed');
+    progressItem.appendChild(speed);
 
     var eta = document.createElement('label');
     eta.setAttribute('class', 'eta');
@@ -118,7 +118,7 @@ function setupWs() {
     if (data['status'] == 'error') {
       alert(`server info: ${data['info']}`)
     } else {
-      console.log(data['title'], data['percent'], data['speed'], data['eta']);
+      console.log(data['filename'], data['percent'], data['speed'], data['eta']);
       updateProgress(data)
     }
   });
