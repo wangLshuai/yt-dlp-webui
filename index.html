@@ -11,8 +11,48 @@
 </head>
 
 <body>
+    <template id="progress-item-template">
+        <dev class="progress-item">
+            <div class="file-info">
+                <label class="filename-label">
+                    media名字
+                </label>
+                <div class="progress-sub-item">
+                    <label class="speed">
+                        1Mb/s
+                    </label>
+
+                    <label class="eta">
+                        00:00
+                    </label>
+                    <label class="size">
+                        0Mb
+                    </label>
+                    <label class="file-action" onclick="onCancelClick(this)">
+                        取消/删除
+                    </label>
+                </div>
+            </div>
+            <svg viewBox="0 0 42 42" class="progress-button" onclick="onProgressButtonClick(this)">
+                <!-- 圆环背景 -->
+                <circle class="circle-bg" cx="21" cy="21" r="15" />
+
+                <!-- 进度条 -->
+                <circle class="circle-progress" cx="21" cy="21" r="15"
+                    stroke-dasharray="calc(2 * 3.1415 * 15 * 0.75), calc(2 * 3.1415 * 15)" />
+
+                <!-- 暂停标志的竖条 -->
+                <g class="pause-bar">
+                    <rect x="16" y="10" width="4" height="22" />
+                    <rect x="22" y="10" width="4" height="22" />
+                </g>
+                <!-- 播放标志的三角形 -->
+                <polygon class="play-triangle" points="18,10 30,21 18,32" />
+            </svg>
+        </dev>
+    </template>
+
     <h1>yt-dlp Web UI</h1>
-    <!-- <img src="static/images/firefox.jpg" alt="my test imgae" /> -->
     <form id="media-url-form" action="parse" method="post">
         <div id="url-group">
             <input type="text" id="media-url-input" name="url" placeholder="video url" required>
@@ -53,36 +93,14 @@
 
 
     <hr class="hr-board">
-    <span>downloading</span>
-
+    <span>download</span>
     <hr>
-
-    <div class="download-head">
-        <label id="video">video</label>
-        <label id="size">size</label>
-        <label id="speed">speed</label>
-        <label id="eta">eta</label>
-    </div>
 
     <div id="progress-container">
-
     </div>
 
     <hr>
 
-
-
-
-    <hr class="hr-board">
-    <span>completed</span>
-
-    <form id="finish-form" action="/submit" method="post">
-        <div class="checkbox-group" id="finish-container">
-            <!-- <p><input type="checkbox" name="interest" value="Musci">Music</p>
-            <p><input type="checkbox" name="interext" value="Sports">Sports</p>
-            <p><input type="checkbox" name="interext" value="Sports">Sports</p> -->
-        </div>
-    </form>
     <script src="/static/scripts/main.js"> </script>
 </body>
 

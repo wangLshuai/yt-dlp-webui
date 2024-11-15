@@ -147,15 +147,17 @@ async def my_background_task():
             "id": "9112128_part1",
             "downloaded_bytes": "2096128",
             "filename": "上古卷轴5天际 吟游诗人-龙裔来了 The Dragonborn Comes [9112128_part1].f2.m4a",
-            "title": "上古卷轴5天际 吟游诗人-龙裔来了 The Dragonborn Comes",
+            "filename": "上古卷轴5天际 吟游诗人-龙裔来了 The Dragonborn Comes",
             "status": "downloading",
-            "_percent_str": " 36.3%",
+            "speed": "1Mb/s",
+            "size": "300Mb",
+            "percent": " 36.3%",
             "eta": "1",
         }
 
-        # for ws in progress_ws_list:
-        #     print("send message")
-        #     await ws.send_json(m)
+        for ws in progress_ws_list:
+            print("send message")
+            await ws.send_json(m)
 
 
 async def on_startup(app):
@@ -166,7 +168,7 @@ progress_ws_list = []
 server_loop = None
 downloader = Downloader(sync_progress_hook, sync_post_hook)
 app = web.Application()
-app.on_startup.append(on_startup)
+# app.on_startup.append(on_startup)
 
 app.router.add_static("/static", "static")
 app.router.add_get("/", index)

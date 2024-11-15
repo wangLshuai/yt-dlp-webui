@@ -49,8 +49,10 @@ class Downloader(object):
             message = {}
             message["status"] = "error"
             message["info"] = traceback.format_exc()
-            print(message)
+            print(message["info"])
             self.progress_hook(message)
+        finally:
+            self.futures.remove(future)
 
     def add(self, media):
         print(f"start download: {media['url']}")

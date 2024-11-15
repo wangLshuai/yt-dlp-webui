@@ -1,72 +1,57 @@
 
 let socket;
 function updateProgress(progressJson) {
-  var progressContainer = document.getElementById('progress-container');
-  var progressItem =
-    progressContainer.querySelector(`[name="${progressJson['filename']}"]`)
+  const progressContainer = document.getElementById('progress-container');
+  let progressItem =
+    progressContainer.querySelector(`[name='${progressJson['filename']}']`)
 
   if (progressJson['status'] === 'finished') {
     console.log(`${progressJson['filename']} finished`);
-    if (progressItem !== null)
-      progressItem.remove();
 
-    mediaListContainer = document.getElementById("finish-container");
+    progressItem.setAttribute('status', 'finished');
 
-    const newCheckbox = document.createElement('input');
-    newCheckbox.type = 'checkbox';
+    const button = progressItem.querySelector('.progress-button');
+    button.remove();
 
-    const newLabel = document.createElement('label');
-    newLabel.className = 'media-label';
-    newLabel.appendChild(newCheckbox);
-    newLabel.appendChild(document.createTextNode(progressJson['filename']));
-    mediaListContainer.appendChild(newLabel);
+    const speed = progressItem.querySelector('.speed');
+    speed.remove();
+
+    const eta = progressItem.querySelector('.eta');
+    eta.remove();
     return;
-
   }
 
   if (progressItem === null) {
     console.log(`not founded #${progressJson['filename']}`)
 
-    progressItem = document.createElement('div');
+    progressItem = document.getElementById('progress-item-template')
+      .content.querySelector('.progress-item').cloneNode(true);
+
     progressItem.setAttribute('name', `${progressJson['filename']}`);
-    progressItem.setAttribute('class', 'progress-item');
+    progressItem.setAttribute('status', progressJson['status']);
+    if (progressJson['status'] === 'downloading') {
+      const button = progressItem.querySelector('.progress-button');
+      button.classList.add('running');
+    }
     progressContainer.appendChild(progressItem);
 
-    var label = document.createElement('label');
-    label.setAttribute('class', 'filename-label');
-    label.textContent = progressJson['filename'];
-    progressItem.appendChild(label);
+    const fileNameLabel = progressItem.querySelector('.filename-label');
+    fileNameLabel.textContent = progressJson['filename'];
 
-
-    var progressBar = document.createElement('dev');
-    progressBar.setAttribute('class', 'progress-bar');
-    progressItem.append(progressBar);
-
-    var progress = document.createElement('dev');
-    progress.setAttribute('class', 'progress');
-    progressBar.appendChild(progress);
-
-    var size = document.createElement('label');
-    size.setAttribute('class', 'size');
-    progressItem.appendChild(size);
-
-    var speed = document.createElement('label');
-    speed.setAttribute('class', 'speed');
-    progressItem.appendChild(speed);
-
-    var eta = document.createElement('label');
-    eta.setAttribute('class', 'eta');
-    progressItem.appendChild(eta);
   }
 
 
-  var progress = progressItem.querySelector('.progress');
-  progress.style.width = progressJson['percent'];
-  var size = progressItem.querySelector('.size');
+  const progress = progressItem.querySelector('.circle-progress');
+  const r = progress.getAttribute('r');
+  const percent = parseFloat(progressJson['percent']) / 100;
+  const l = 2 * r * Math.PI;
+  console.log(`percent*l: ${percent * l} l:${l}`);
+  progress.style.strokeDasharray = `${percent * l},${l}`;
+  const size = progressItem.querySelector('.size');
   size.textContent = progressJson['size'];
-  var speed = progressItem.querySelector('.speed');
+  const speed = progressItem.querySelector('.speed');
   speed.textContent = progressJson['speed'];
-  var eta = progressItem.querySelector('.eta');
+  const eta = progressItem.querySelector('.eta');
   eta.textContent = progressJson['eta'];
 
 
@@ -135,4 +120,22 @@ function setupWs() {
   });
 }
 
+function onProgressButtonClick(button) {
+  console.log(button);
+  const isRunning = button.classList.toggle('running');
+  const playTriangle = button.querySelector('.play-triangle');
+  const pauseBar = button.querySelector('.pause-bar')
+  if (isRunning) {
+    pauseBar.style.display = 'block';
+    playTriangle.style.display = 'none';
+  } else {
+    pauseBar.style.display = 'none';
+    playTriangle.style.display = 'block';
+  }
+
+}
+
+function onCancelClick(cancel) {
+  console.log(cancel);
+}
 setupWs();

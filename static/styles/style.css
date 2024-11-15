@@ -96,25 +96,11 @@ select {
     align-items: center;
 }
 
-#video {
+/* #video {
     font-size: 30px;
     flex-grow: 1;
-}
+} */
 
-#size {
-    font-size: 30px;
-    width: 50px;
-}
-
-#speed {
-    font-size: 30px;
-    width: 100px;
-}
-
-#eta {
-    font-size: 30px;
-    width: 100px
-}
 
 #finish-form {
     display: flex;
@@ -123,9 +109,9 @@ select {
     margin: 20px;
 }
 
-.media-label {
+/* .media-label {
     font-size: 15px;
-}
+} */
 
 .checkbox-group {
     display: flex;
@@ -147,31 +133,86 @@ select {
 
 .progress-item {
     display: flex;
-    /* align-items: center; */
-    flex-wrap: wrap;
+    align-items: center;
+    /* flex-wrap: wrap; */
+    height: 100px;
+}
+
+
+.file-info {
+    flex-grow: 1;
+    /* 让 label 自动增长 */
+}
+
+.file-action {
+    color: rgb(97, 120, 197)
 }
 
 .filename-label {
-    width: 60%;
+    flex-grow: 1;
+    /* 让 label 自动增长 */
+    max-height: 80px;
+    white-space: pre-wrap;
+    /* 允许换行 */
     overflow: hidden;
+    /* 溢出隐藏 */
+    text-overflow: ellipsis;
+    /* 溢出部分用省略号表示 */
+    display: -webkit-box;
+    /* 作为弹性伸缩盒子模型显示 */
+    -webkit-box-orient: vertical;
+    /* 设置子元素的排列方式为垂直 */
+    line-height: 1.5em;
+    /* 行高 */
+    max-height: 3em;
+    /* 最大高度为两行的高度 */
+    position: relative;
+    /* 相对定位 */
 }
 
-.progress-bar {
-    margin: 10px;
-    background-color: #a2e7a4;
-    display: flex;
-    height: 20px;
-    min-width: 60px;
-    flex: 1;
-    align-items: center;
-    border-radius: 5px;
-    overflow: hidden;
+.progress-sub-item {
+    font-size: 10px;
+    color: rgb(66, 61, 61);
 }
 
-.progress {
-    height: 30px;
-    margin: 2px, 2px, 0, 30px;
-    width: 0;
-    background-color: #4caf50;
-    transition: width 0.5s ease-in-out;
+.progress-button {
+    width: 50px;
+    height: 50px;
+    margin-left: 10px;
+    flex-shrink: 0
+        /* transform: scale(0.5);
+    transform-origin: top left; */
+}
+
+.circle-bg {
+    fill: none;
+    stroke: rgb(112, 108, 108);
+    stroke-width: 0.5;
+    shape-rendering: calc();
+    image-rendering: optimizeQuality;
+}
+
+.circle-progress {
+    fill: none;
+    stroke: rgb(61, 226, 61);
+    stroke-width: 0.5;
+    stroke-linecap: round;
+    /* 使圆弧的端点为圆形 */
+    transform: rotate(-90deg);
+    /* 调整起始位置 */
+    transform-origin: center;
+    shape-rendering: calc();
+    image-rendering: optimizeQuality;
+
+
+}
+
+.pause-bar {
+    fill: rgb(112, 108, 108);
+    display: none;
+
+}
+
+.play-triangle {
+    fill: rgb(112, 108, 108);
 }
