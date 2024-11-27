@@ -1,9 +1,39 @@
 
 let socket;
+
+function createProgress() {
+
+}
 function updateProgress(progressJson) {
   const progressContainer = document.getElementById('progress-container');
   let progressItem =
-    progressContainer.querySelector(`[name='${progressJson['filename']}']`)
+    progressContainer.querySelector(`[filename='${progressJson['filename']}']`)
+
+  if (progressItem === null) {
+    console.log(`not founded #${progressJson['filename']}`)
+
+    progressItem = document.getElementById('progress-item-template')
+      .content.querySelector('.progress-item').cloneNode(true);
+
+    progressItem.setAttribute('filename', `${progressJson['filename']}`);
+    progressItem.setAttribute('status', progressJson['status']);
+    if (progressJson['status'] === 'downloading') {
+      const button = progressItem.querySelector('.progress-button');
+      button.classList.add('running');
+      const pauseBar = progressItem.querySelector('.pause-bar');
+      const playTriangle = progressItem.querySelector('.play-triangle');
+      pauseBar.style.display = 'block';
+      playTriangle.style.display = 'none';
+    }
+    progressContainer.insertBefore(progressItem, progressContainer.firstChild);
+
+    const fileNameLabel = progressItem.querySelector('.filename-label');
+    fileNameLabel.textContent = progressJson['filename'];
+
+  }
+
+  const size = progressItem.querySelector('.size');
+  size.textContent = progressJson['size'];
 
   if (progressJson['status'] === 'finished') {
     console.log(`${progressJson['filename']} finished`);
@@ -21,25 +51,6 @@ function updateProgress(progressJson) {
     return;
   }
 
-  if (progressItem === null) {
-    console.log(`not founded #${progressJson['filename']}`)
-
-    progressItem = document.getElementById('progress-item-template')
-      .content.querySelector('.progress-item').cloneNode(true);
-
-    progressItem.setAttribute('name', `${progressJson['filename']}`);
-    progressItem.setAttribute('status', progressJson['status']);
-    if (progressJson['status'] === 'downloading') {
-      const button = progressItem.querySelector('.progress-button');
-      button.classList.add('running');
-    }
-    progressContainer.appendChild(progressItem);
-
-    const fileNameLabel = progressItem.querySelector('.filename-label');
-    fileNameLabel.textContent = progressJson['filename'];
-
-  }
-
 
   const progress = progressItem.querySelector('.circle-progress');
   const r = progress.getAttribute('r');
@@ -47,8 +58,7 @@ function updateProgress(progressJson) {
   const l = 2 * r * Math.PI;
   console.log(`percent*l: ${percent * l} l:${l}`);
   progress.style.strokeDasharray = `${percent * l},${l}`;
-  const size = progressItem.querySelector('.size');
-  size.textContent = progressJson['size'];
+
   const speed = progressItem.querySelector('.speed');
   speed.textContent = progressJson['speed'];
   const eta = progressItem.querySelector('.eta');
@@ -57,29 +67,19 @@ function updateProgress(progressJson) {
 
 }
 
-let urlform = document.getElementById('media-url-form')
-  .addEventListener('submit', function (event) {
-    event.preventDefault();
-    const mediaUrl =
-      document.getElementById('media-url-input').value;
-    const quality = document.getElementById('quality').value;
-    const format = document.getElementById('format').value;
-    const auto = document.getElementById('auto').value;
-    fetch('add', {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        'url': mediaUrl,
-        'quality': quality,
-        'format': format,
-        'auto': auto
-      })
-    })
-      // .then(response => response.json())
-      // .then(data => insertMediaList(data))
-      .catch(error => console.error('Error', error));
-  })
+function handleSubmit(event) {
+  event.preventDefault();
+  const urlInput =
+    document.getElementById('media-url-input');
+  const mediaUrl = urlInput.value;
+  urlInput.value = '';
+  const quality = document.getElementById('quality').value;
+  const format = document.getElementById('format').value;
+  const auto = document.getElementById('auto').value;
+  const media = { 'url': mediaUrl, 'quality': quality, 'format': format, 'auto': auto }
+  const message = { 'action': 'add', 'media': media };
+  socket.send(JSON.stringify(message));
+}
 
 function setupWs() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -89,32 +89,22 @@ function setupWs() {
   const ws_url = `${protocol}//${host}${path}`;
   socket = new WebSocket(ws_url);
 
-  // 当连接建立时触发
-  socket.addEventListener('open', function (event) {
-    // 发送一个JSON对象
-    const message = { type: 'greeting', content: 'Hello, server!' };
-    socket.send(JSON.stringify(message));
-  });
-
-  // 当从服务器接收到消息时触发
   socket.addEventListener('message', function (event) {
-    // 解析接收到的JSON字符串
-    const data = JSON.parse(event.data);
-    if (data['status'] == 'error') {
-      alert(`server info: ${data['info']}`)
+    const message = JSON.parse(event.data);
+    if (message['status'] == 'error') {
+      alert(`server info: ${message['info']}`)
     } else {
-      console.log(data['filename'], data['percent'], data['speed'], data['eta']);
-      updateProgress(data)
+      console.log(message);
+      updateProgress(message)
     }
   });
 
-  // 当连接关闭时触发
+
   socket.addEventListener('close', function (event) {
     console.log('Connection closed');
     setTimeout(setupWs, 1000);
   });
 
-  // 当发生错误时触发
   socket.addEventListener('error', function (event) {
     console.error('Error detected', event);
   });
@@ -122,15 +112,26 @@ function setupWs() {
 
 function onProgressButtonClick(button) {
   console.log(button);
+  const progressItem = button.parentElement;
   const isRunning = button.classList.toggle('running');
+  console.log(isRunning);
   const playTriangle = button.querySelector('.play-triangle');
-  const pauseBar = button.querySelector('.pause-bar')
+  const pauseBar = button.querySelector('.pause-bar');
+
+  const filename = progressItem.getAttribute('filename');
+
+  const media = { 'filename': filename };
   if (isRunning) {
     pauseBar.style.display = 'block';
     playTriangle.style.display = 'none';
+    const message = { 'action': 'resume', 'media': media };
+    socket.send(JSON.stringify(message));
   } else {
+    console.log('pause,display block');
     pauseBar.style.display = 'none';
     playTriangle.style.display = 'block';
+    const message = { 'action': 'pause', 'media': media };
+    socket.send(JSON.stringify(message));
   }
 
 }

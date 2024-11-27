@@ -53,15 +53,15 @@
     </template>
 
     <h1>yt-dlp Web UI</h1>
-    <form id="media-url-form" action="parse" method="post">
+    <form id="media-url-form" onsubmit="return handleSubmit(event)">
         <div id="url-group">
             <input type="text" id="media-url-input" name="url" placeholder="video url" required>
             <button type="submit" id="add-button">ADD</button>
         </div>
         <div id="select-group">
             <div class="select-item">
-                <label>quailty</label>
-                <select id="quality">
+                <label>quality</label>
+                <select id="quality" title="video resolution">
                     <option value="4320" selected>best</option>
                     <option value="2160">4k</option>
                     <option value="1440">2k</option>
@@ -75,15 +75,15 @@
             </div>
             <div class="select-item">
                 <label>format</label>
-                <select id="format">
+                <select id="format" title="video or audio">
                     <option value="any">any</option>
                     <option value="video">video ony</option>
-                    <option value="avdio">avdio</option>
+                    <option value="audio">audio</option>
                 </select>
             </div>
             <div class="select-item">
                 <label>auto</label>
-                <select id="auto">
+                <select id="auto" title="auto download">
                     <option value="yes" selected>yes</option>
                     <option value="no">no</option>
                 </select>
