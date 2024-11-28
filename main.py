@@ -19,15 +19,15 @@ async def index(request):
 
 
 def process_action(message):
+    logger.info(message)
     if message["action"] == "add":
-        logger.info(message)
         downloader.add(message["media"])
     if message["action"] == "pause":
-        logger.info(message)
         downloader.pause(message["media"])
     if message["action"] == "resume":
-        logger.info(message)
         downloader.resume(message["media"])
+    if message["action"] == "cancel":
+        downloader.cancel(message["media"])
 
 
 async def websocket_progress(request):

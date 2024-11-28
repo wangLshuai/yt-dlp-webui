@@ -32,6 +32,11 @@ function updateProgress(progressJson) {
 
   }
 
+  if (progressJson['status'] === 'cancel') {
+    progressItem.remove();
+    return;
+  }
+
   if (progressJson['size'] != null) {
     const size = progressItem.querySelector('.size');
     size.textContent = progressJson['size'];
@@ -60,7 +65,6 @@ function updateProgress(progressJson) {
   if (percent_str != null) {
     const percent = parseFloat(percent_str) / 100;
     const l = 2 * r * Math.PI;
-    console.log(`percent*l: ${percent * l} l:${l}`);
     progress.style.strokeDasharray = `${percent * l},${l}`;
   }
 
@@ -81,7 +85,12 @@ function handleSubmit(event) {
   const quality = document.getElementById('quality').value;
   const format = document.getElementById('format').value;
   const auto = document.getElementById('auto').value;
-  const media = { 'url': mediaUrl, 'quality': quality, 'format': format, 'auto': auto }
+  let media;
+  if (auto === 'yes') {
+    media = { 'url': mediaUrl, 'quality': quality, 'format': format, 'status': 'downloading' }
+  } else {
+    media = { 'url': mediaUrl, 'quality': quality, 'format': format, 'status': 'pause' }
+  }
   const message = { 'action': 'add', 'media': media };
   socket.send(JSON.stringify(message));
 }
@@ -99,7 +108,6 @@ function setupWs() {
     if (message['status'] == 'error') {
       alert(`server info: ${message['info']}`)
     } else {
-      console.log(message);
       updateProgress(message)
     }
   });
@@ -116,10 +124,8 @@ function setupWs() {
 }
 
 function onProgressButtonClick(button) {
-  console.log(button);
   const progressItem = button.parentElement;
   const isRunning = button.classList.toggle('running');
-  console.log(isRunning);
   const playTriangle = button.querySelector('.play-triangle');
   const pauseBar = button.querySelector('.pause-bar');
 
@@ -132,7 +138,6 @@ function onProgressButtonClick(button) {
     const message = { 'action': 'resume', 'media': media };
     socket.send(JSON.stringify(message));
   } else {
-    console.log('pause,display block');
     pauseBar.style.display = 'none';
     playTriangle.style.display = 'block';
     const message = { 'action': 'pause', 'media': media };
@@ -142,6 +147,10 @@ function onProgressButtonClick(button) {
 }
 
 function onCancelClick(cancel) {
-  console.log(cancel);
+  const progressItem = cancel.parentElement.parentElement.parentElement;
+  const filename = progressItem.getAttribute('filename');
+  const media = { 'filename': filename };
+  const message = { 'action': 'cancel', 'media': media };
+  socket.send(JSON.stringify(message));
 }
 setupWs();

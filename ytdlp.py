@@ -3,7 +3,10 @@ import concurrent.futures
 import traceback
 import os
 import re
+import threading
 import functools
+from pathlib import Path
+import copy
 
 
 def human_size(size):
@@ -29,6 +32,14 @@ def human_time(seconds):
     return h_str + m_str + f"{int(seconds):02d}"
 
 
+class DownloadPause(Exception):
+    pass
+
+
+class DownloadCancel(Exception):
+    pass
+
+
 class Downloader(object):
     def __init__(self, notify, max_workers=5):
         # self.listener_thread = threading.Thread(target=process_queue, args=(q, 5))
@@ -36,29 +47,44 @@ class Downloader(object):
         self.notify = notify
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
         self.medias = {}
+        self.mutex = threading.Lock()
 
     def progress_hook(self, progress):
         m = {}
+        # print(progress)
         if progress.get("info_dict") and progress.get("info_dict").get("_filename"):
-            filename = os.path.splitext(
-                os.path.basename(progress["info_dict"]["_filename"])
-            )[0]
-            m["filename"] = filename
-            m["size"] = human_size(self.medias[filename]["size"])
-            if self.medias[filename]["auto"] == "no":
-                raise KeyboardInterrupt("pasue")
+            filename = progress["info_dict"]["_filename"]
+            media = {}
+            with self.mutex:
+                media = copy.deepcopy(self.medias[filename])
+                if media.get("status", "N/A") == "pause":
+                    raise DownloadPause("pasue")
 
-            # if progress.get("_total_bytes_str"):
-            #     m["size"] = re.sub(
-            #         r"\u001b\[[0-9;]*m", "", progress.get("_total_bytes_str")
-            #     )
-            # else:
-            #     m["size"] = "N/A"
+                if media.get("status", "N/A") == "cancel":
+                    raise DownloadCancel("cancel")
+
+            m["filename"] = filename
+            if media["size"] > 0:
+                m["size"] = human_size(media["size"])
+            else:
+                total_bytes_str = re.sub(
+                    r"\u001b\[[0-9;]*m", "", progress.get("_total_bytes_str", "N/A")
+                )
+                total_bytes_estimate_str = re.sub(
+                    r"\u001b\[[0-9;]*m",
+                    "",
+                    progress.get("_total_bytes_estimate_str", "N/A"),
+                )
+                if re.search(r"\d", total_bytes_str):
+                    m["size"] = total_bytes_str
+                elif re.search(r"\d", total_bytes_estimate_str):
+                    m["size"] = total_bytes_estimate_str
 
             if progress.get("status") == "downloading":
-                m["id"] = progress["info_dict"]["id"]
-                subfiles = self.medias[filename]["subfiles"]
+                subfiles = media["subfiles"]
                 ext = progress["info_dict"]["ext"]
+                if subfiles.get(ext) is None:
+                    subfiles[ext] = {}
                 subfiles[ext]["downloaded_bytes"] = progress.get("downloaded_bytes")
                 total_downloaded_bytes = 0
                 for key in subfiles:
@@ -71,37 +97,42 @@ class Downloader(object):
                     )
                 else:
                     m["speed"] = "N/A"
-                m["status"] = progress["status"]
-                m["percent"] = (
-                    f"{total_downloaded_bytes/self.medias[filename]["size"]*100:.2f}%"
-                )
-                if progress.get("speed"):
 
+                if media["size"] > 0:
+                    m["percent"] = f"{total_downloaded_bytes/media['size']*100:.2f}%"
+                else:
+                    m["percent"] = re.sub(
+                        r"\u001b\[[0-9;]*m", "", progress.get("_percent_str")
+                    )
+
+                if progress.get("speed") and media["size"] > 0:
                     m["eta"] = human_time(
-                        (self.medias[filename]["size"] - total_downloaded_bytes) / progress.get("speed")
+                        (media["size"] - total_downloaded_bytes) / progress.get("speed")
                     )
                 else:
-                    m["eta"] = "N/A"
+                    m["eta"] = re.sub(
+                        r"\u001b\[[0-9;]*m", "", progress.get("_eta_str", "N/A")
+                    )
 
-            # elif progress["status"] == "finished":
-            #     m["status"] = "download_finished"
-            #     m["speed"] = "convert"
+                m["status"] = progress["status"]
+
+            elif progress["status"] == "finished":
+                m["status"] = "download_finished"
+                m["speed"] = "convert"
 
         # print(m)
         self.notify(m)
 
     def post_hook(self, fullname):
-        basename = os.path.basename(fullname)
-        filename = os.path.splitext(basename)[0]
+        # basename = os.path.basename(fullname)
+        filename = os.path.basename(fullname)
         m = {}
         m["filename"] = filename
         m["status"] = "finished"
-        size = os.path.getsize(fullname)
-        for uint in ["B", "K", "M", "G"]:
-            if size < 1024:
-                break
-            size /= 1024
-        m["size"] = f"{size:.2f}{uint}"
+        with self.mutex:
+            if self.medias[filename].get("status", "N/A") == "cancel":
+                raise DownloadCancel("cancel")
+            self.medias[filename]["status"] = "finished"
         print(f"{filename}------------ convert finished")
         self.notify(m)
 
@@ -136,10 +167,11 @@ class Downloader(object):
             filename = ydl.prepare_filename(playlist_info)
 
             formats = playlist_info.get("requested_formats", [])
-
+            print(formats)
             total_size = 0
             subfiles = {}
             for fmt in formats:
+                print(fmt)
                 size = 0
                 try:
                     size = int(fmt.get("filesize", "N/A"))
@@ -151,27 +183,36 @@ class Downloader(object):
                 subfiles[fmt["ext"]] = {"size": size}
                 total_size += size
 
-            filename = os.path.splitext(filename)[0]
+            # filename = os.path.splitext(filename)[0]
             print("add filename: ", filename)
             media["filename"] = filename
-            self.medias[filename] = {
-                "title": playlist_info["title"],
-                "url": media["url"],
-                "size": total_size,
-                "quality": media["quality"],
-                "format": media["format"],
-                "auto": media["auto"],
-                "subfiles": subfiles,
-            }
-            print(self.medias[filename])
+            with self.mutex:
+                self.medias[filename] = {
+                    "title": playlist_info["title"],
+                    "url": media["url"],
+                    "size": total_size,
+                    "quality": media["quality"],
+                    "format": media["format"],
+                    "status": media["status"],
+                    "subfiles": subfiles,
+                }
 
     def handle_exception(self, future, filename):
         message = {}
         message["filename"] = filename
         try:
             future.result()
-        except KeyboardInterrupt:
+        except DownloadPause:
             message["status"] = "pause"
+            self.notify(message)
+        except DownloadCancel:
+            base_path = Path(".")
+            files = base_path.glob(f"{filename}*")
+            for f in files:
+                os.remove(f)
+            with self.mutex:
+                self.medias.pop(filename)
+            message["status"] = "cancel"
             self.notify(message)
         except Exception as e:
             print("Caught an exception in callback:")
@@ -181,40 +222,61 @@ class Downloader(object):
             self.notify(message)
 
     def pause(self, media):
-        media = self.medias.get(media["filename"])
-        if media:
-            media["auto"] = "no"
+        with self.mutex:
+            media = self.medias.get(media["filename"])
+            if media:
+                media["status"] = "pause"
 
     def resume(self, media):
         filename = media["filename"]
-        media = self.medias.get(filename)
-        if media:
-            media["auto"] = "yes"
-            print(f"start download: {media['url']}")
-            future = self.executor.submit(self.download_process, media)
-            handle_exception_with_args = functools.partial(
-                self.handle_exception, filename=filename
-            )
-            future.add_done_callback(handle_exception_with_args)
-            print(f"commit: {media['url']}")
+        with self.mutex:
+            media = self.medias.get(filename)
+            if media:
+                media["status"] = "downloading"
+                print(f"start download: {media['url']}")
+                future = self.executor.submit(self.download_process, media)
+                handle_exception_with_args = functools.partial(
+                    self.handle_exception, filename=filename
+                )
+                future.add_done_callback(handle_exception_with_args)
+                print(f"submit: {media['url']}")
 
     def add(self, media):
         self.extract_info(media)
-        if media["auto"] == "yes":
+        if media["status"] == "downloading":
             print(f"start download: {media['url']}")
             future = self.executor.submit(self.download_process, media)
             handle_exception_with_args = functools.partial(
                 self.handle_exception, filename=media["filename"]
             )
             future.add_done_callback(handle_exception_with_args)
-            print(f"commit: {media['url']}")
+            print(f"submit: {media['url']}")
         else:
             message = {}
             message["size"] = self.medias[media["filename"]]["size"]
             message["filename"] = media["filename"]
             message["percent"] = self.medias[media["filename"]]["size"]
             message["status"] = "pause"
-            self.notify(media)
+            self.notify(message)
+
+    def cancel(self, media):
+        filename = media["filename"]
+        if self.medias.get(filename):
+            with self.mutex:
+                status = self.medias[filename].get("status", "N/A")
+                if status == "finished" or status == "pause":
+                    base_path = Path(".")
+                    files = base_path.glob(f"{filename}*")
+                    for f in files:
+                        print(f)
+                        os.remove(f)
+                    self.medias.pop(filename)
+                    message = {}
+                    message["filename"] = filename
+                    message["status"] = "cancel"
+                    self.notify(message)
+                else:
+                    self.medias[filename]["status"] = "cancel"
 
 
 if __name__ == "__main__":
@@ -226,10 +288,10 @@ if __name__ == "__main__":
     downaloader = Downloader(notify)
     downaloader.add(
         {
-            "url": "https://www.bilibili.com/video/BV1yx411C7YU",
+            "url": "https://v.qq.com/x/page/o3550b3cudq.html",
             "format": "mp3",
             "quality": "360p",
-            "auto": "yes",
+            "status": "downloading",
         }
     )
 
