@@ -6,6 +6,29 @@ import re
 import functools
 
 
+def human_size(size):
+    unit = ["B", "K", "M", "G"]
+    while size > 1024:
+        size /= 1024
+        unit.pop(0)
+
+    return f"{size:.2f}{unit[0]}"
+
+
+def human_time(seconds):
+    h_str = ""
+    m_str = ""
+
+    if seconds > 3600:
+        h_str = f"{int(seconds/3600):02d}:"
+        m_str = "00:"
+        seconds %= 3600
+    if seconds > 60:
+        m_str = f"{int(seconds/60):02d}:"
+        seconds %= 60
+    return h_str + m_str + f"{int(seconds):02d}"
+
+
 class Downloader(object):
     def __init__(self, notify, max_workers=5):
         # self.listener_thread = threading.Thread(target=process_queue, args=(q, 5))
@@ -21,36 +44,48 @@ class Downloader(object):
                 os.path.basename(progress["info_dict"]["_filename"])
             )[0]
             m["filename"] = filename
+            m["size"] = human_size(self.medias[filename]["size"])
             if self.medias[filename]["auto"] == "no":
                 raise KeyboardInterrupt("pasue")
 
-            if progress.get("_total_bytes_str"):
-                m["size"] = re.sub(
-                    r"\u001b\[[0-9;]*m", "", progress.get("_total_bytes_str")
+            # if progress.get("_total_bytes_str"):
+            #     m["size"] = re.sub(
+            #         r"\u001b\[[0-9;]*m", "", progress.get("_total_bytes_str")
+            #     )
+            # else:
+            #     m["size"] = "N/A"
+
+            if progress.get("status") == "downloading":
+                m["id"] = progress["info_dict"]["id"]
+                subfiles = self.medias[filename]["subfiles"]
+                ext = progress["info_dict"]["ext"]
+                subfiles[ext]["downloaded_bytes"] = progress.get("downloaded_bytes")
+                total_downloaded_bytes = 0
+                for key in subfiles:
+                    total_downloaded_bytes += subfiles[key].get("downloaded_bytes", 0)
+                m["downloaded_bytes"] = total_downloaded_bytes
+
+                if progress.get("_speed_str"):
+                    m["speed"] = re.sub(
+                        r"\u001b\[[0-9;]*m", "", progress.get("_speed_str")
+                    )
+                else:
+                    m["speed"] = "N/A"
+                m["status"] = progress["status"]
+                m["percent"] = (
+                    f"{total_downloaded_bytes/self.medias[filename]["size"]*100:.2f}%"
                 )
-            else:
-                m["size"] = "N/A"
+                if progress.get("speed"):
 
-        if progress.get("status") == "error":
-            m = progress
-        elif progress.get("status") == "downloading":
-            m["id"] = progress["info_dict"]["id"]
-            m["downloaded_bytes"] = progress.get("downloaded_bytes")
+                    m["eta"] = human_time(
+                        (self.medias[filename]["size"] - total_downloaded_bytes) / progress.get("speed")
+                    )
+                else:
+                    m["eta"] = "N/A"
 
-            if progress.get("_speed_str"):
-                m["speed"] = re.sub(r"\u001b\[[0-9;]*m", "", progress.get("_speed_str"))
-            else:
-                m["speed"] = "0"
-            m["status"] = progress["status"]
-            m["percent"] = re.sub(r"\u001b\[[0-9;]*m", "", progress["_percent_str"])
-            if progress.get("_eta_str"):
-                m["eta"] = re.sub(r"\u001b\[[0-9;]*m", "", progress["_eta_str"])
-            else:
-                m["eta"] = 0
-
-        elif progress["status"] == "finished":
-            m["status"] = "download_finished"
-            m["speed"] = "convert"
+            # elif progress["status"] == "finished":
+            #     m["status"] = "download_finished"
+            #     m["speed"] = "convert"
 
         # print(m)
         self.notify(m)
@@ -103,6 +138,7 @@ class Downloader(object):
             formats = playlist_info.get("requested_formats", [])
 
             total_size = 0
+            subfiles = {}
             for fmt in formats:
                 size = 0
                 try:
@@ -112,6 +148,7 @@ class Downloader(object):
                         size = int(fmt.get("filesize_approx", "N/A"))
                     except (TypeError, ValueError):
                         print("couldn't get size")
+                subfiles[fmt["ext"]] = {"size": size}
                 total_size += size
 
             filename = os.path.splitext(filename)[0]
@@ -124,7 +161,9 @@ class Downloader(object):
                 "quality": media["quality"],
                 "format": media["format"],
                 "auto": media["auto"],
+                "subfiles": subfiles,
             }
+            print(self.medias[filename])
 
     def handle_exception(self, future, filename):
         message = {}
@@ -169,11 +208,33 @@ class Downloader(object):
             )
             future.add_done_callback(handle_exception_with_args)
             print(f"commit: {media['url']}")
+        else:
+            message = {}
+            message["size"] = self.medias[media["filename"]]["size"]
+            message["filename"] = media["filename"]
+            message["percent"] = self.medias[media["filename"]]["size"]
+            message["status"] = "pause"
+            self.notify(media)
 
 
-def progress_hook(progress):
-    print(progress)
+if __name__ == "__main__":
+    import time
 
+    def notify(message):
+        print(message)
 
-def post_hook():
-    print("complete")
+    downaloader = Downloader(notify)
+    downaloader.add(
+        {
+            "url": "https://www.bilibili.com/video/BV1yx411C7YU",
+            "format": "mp3",
+            "quality": "360p",
+            "auto": "yes",
+        }
+    )
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        exit(0)

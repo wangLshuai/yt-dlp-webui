@@ -32,8 +32,10 @@ function updateProgress(progressJson) {
 
   }
 
-  const size = progressItem.querySelector('.size');
-  size.textContent = progressJson['size'];
+  if (progressJson['size'] != null) {
+    const size = progressItem.querySelector('.size');
+    size.textContent = progressJson['size'];
+  }
 
   if (progressJson['status'] === 'finished') {
     console.log(`${progressJson['filename']} finished`);
@@ -54,10 +56,13 @@ function updateProgress(progressJson) {
 
   const progress = progressItem.querySelector('.circle-progress');
   const r = progress.getAttribute('r');
-  const percent = parseFloat(progressJson['percent']) / 100;
-  const l = 2 * r * Math.PI;
-  console.log(`percent*l: ${percent * l} l:${l}`);
-  progress.style.strokeDasharray = `${percent * l},${l}`;
+  const percent_str = progressJson['percent'];
+  if (percent_str != null) {
+    const percent = parseFloat(percent_str) / 100;
+    const l = 2 * r * Math.PI;
+    console.log(`percent*l: ${percent * l} l:${l}`);
+    progress.style.strokeDasharray = `${percent * l},${l}`;
+  }
 
   const speed = progressItem.querySelector('.speed');
   speed.textContent = progressJson['speed'];

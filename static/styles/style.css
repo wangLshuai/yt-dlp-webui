@@ -96,12 +96,6 @@ select {
     align-items: center;
 }
 
-/* #video {
-    font-size: 30px;
-    flex-grow: 1;
-} */
-
-
 #finish-form {
     display: flex;
     flex-direction: column;
@@ -141,7 +135,6 @@ select {
 
 .file-info {
     flex-grow: 1;
-    /* 让 label 自动增长 */
 }
 
 .file-action {
@@ -150,24 +143,15 @@ select {
 
 .filename-label {
     flex-grow: 1;
-    /* 让 label 自动增长 */
     max-height: 80px;
     white-space: pre-wrap;
-    /* 允许换行 */
     overflow: hidden;
-    /* 溢出隐藏 */
     text-overflow: ellipsis;
-    /* 溢出部分用省略号表示 */
     display: -webkit-box;
-    /* 作为弹性伸缩盒子模型显示 */
     -webkit-box-orient: vertical;
-    /* 设置子元素的排列方式为垂直 */
     line-height: 1.5em;
-    /* 行高 */
     max-height: 3em;
-    /* 最大高度为两行的高度 */
     position: relative;
-    /* 相对定位 */
 }
 
 .progress-sub-item {
@@ -187,7 +171,7 @@ select {
 .circle-bg {
     fill: none;
     stroke: rgb(112, 108, 108);
-    stroke-width: 0.5;
+    stroke-width: 1.5;
     shape-rendering: calc();
     image-rendering: optimizeQuality;
 }
@@ -195,7 +179,7 @@ select {
 .circle-progress {
     fill: none;
     stroke: rgb(61, 226, 61);
-    stroke-width: 0.5;
+    stroke-width: 1.5;
     stroke-linecap: round;
     /* 使圆弧的端点为圆形 */
     transform: rotate(-90deg);
