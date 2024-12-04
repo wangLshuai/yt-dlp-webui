@@ -37,6 +37,7 @@ async def websocket_progress(request):
     progress_ws_list.append(ws)
     logger.info("WebSocket connection opened")
     logger.info(f"WebSocket connect num: {len(progress_ws_list)}")
+    downloader.update_notify()
     try:
         async for msg in ws:
             if msg.type == web.WSMsgType.TEXT:

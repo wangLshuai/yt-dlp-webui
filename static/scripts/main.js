@@ -10,8 +10,6 @@ function updateProgress(progressJson) {
     progressContainer.querySelector(`[filename='${progressJson['filename']}']`)
 
   if (progressItem === null) {
-    console.log(`not founded #${progressJson['filename']}`)
-
     progressItem = document.getElementById('progress-item-template')
       .content.querySelector('.progress-item').cloneNode(true);
 
@@ -37,9 +35,15 @@ function updateProgress(progressJson) {
     return;
   }
 
+
   if (progressJson['size'] != null) {
     const size = progressItem.querySelector('.size');
     size.textContent = progressJson['size'];
+  }
+
+  if (progressJson['downloaded_bytes'] != null) {
+    const downloaded_bytes = progressItem.querySelector('.downloaded_bytes');
+    downloaded_bytes.textContent = progressJson['downloaded_bytes'];
   }
 
   if (progressJson['status'] === 'finished') {
@@ -48,13 +52,20 @@ function updateProgress(progressJson) {
     progressItem.setAttribute('status', 'finished');
 
     const button = progressItem.querySelector('.progress-button');
-    button.remove();
+    if (button != null)
+      button.remove();
+
+    const downloaded_bytes = progressItem.querySelector('.downloaded_bytes');
+    if (downloaded_bytes != null)
+      downloaded_bytes.remove();
 
     const speed = progressItem.querySelector('.speed');
-    speed.remove();
+    if (speed != null)
+      speed.remove();
 
     const eta = progressItem.querySelector('.eta');
-    eta.remove();
+    if (eta != null)
+      eta.remove();
     return;
   }
 
@@ -81,7 +92,6 @@ function handleSubmit(event) {
   const urlInput =
     document.getElementById('media-url-input');
   const mediaUrl = urlInput.value;
-  urlInput.value = '';
   const quality = document.getElementById('quality').value;
   const format = document.getElementById('format').value;
   const auto = document.getElementById('auto').value;
@@ -93,6 +103,7 @@ function handleSubmit(event) {
   }
   const message = { 'action': 'add', 'media': media };
   socket.send(JSON.stringify(message));
+  urlInput.value = '';
 }
 
 function setupWs() {
@@ -112,15 +123,22 @@ function setupWs() {
     }
   });
 
+  function closeEventHandler() {
+    console.log('Connection closed,retry');
+    setTimeout(setupWs, 2000);
+  }
 
-  socket.addEventListener('close', function (event) {
-    console.log('Connection closed');
-    setTimeout(setupWs, 1000);
-  });
+  function errorEventHandler(event) {
+    console.log('Error detected', event);
+    socket.removeEventListener('close', closeEventHandler);
+    socket.removeEventListener("error", errorEventHandler);
 
-  socket.addEventListener('error', function (event) {
-    console.error('Error detected', event);
-  });
+    closeEventHandler();
+  }
+
+  socket.addEventListener('close', closeEventHandler);
+
+  socket.addEventListener('error', errorEventHandler);
 }
 
 function onProgressButtonClick(button) {
@@ -149,8 +167,11 @@ function onProgressButtonClick(button) {
 function onCancelClick(cancel) {
   const progressItem = cancel.parentElement.parentElement.parentElement;
   const filename = progressItem.getAttribute('filename');
-  const media = { 'filename': filename };
-  const message = { 'action': 'cancel', 'media': media };
-  socket.send(JSON.stringify(message));
+  userResponse = confirm(`你确定删除 《${filename}》下载载任务吗？`);
+  if (userResponse == true) {
+    const media = { 'filename': filename };
+    const message = { 'action': 'cancel', 'media': media };
+    socket.send(JSON.stringify(message));
+  }
 }
 setupWs();

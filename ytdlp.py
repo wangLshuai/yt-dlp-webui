@@ -49,78 +49,100 @@ class Downloader(object):
         self.medias = {}
         self.mutex = threading.Lock()
 
+    def update_notify(self):
+        for filename in self.medias:
+            message = {}
+            message["filename"] = filename
+            message["status"] = self.medias[filename]["status"]
+            message["size"] = human_size(self.medias[filename]["size"])
+            message["downloaded_bytes"] = self.medias[filename].get(
+                "downloaded_bytes", 0
+            )
+            message["percent"] = self.medias[filename].get("percent", "N/A")
+            self.notify(message)
+
     def progress_hook(self, progress):
         m = {}
+        media = {}
         # print(progress)
-        if progress.get("info_dict") and progress.get("info_dict").get("_filename"):
-            filename = progress["info_dict"]["_filename"]
-            media = {}
-            with self.mutex:
-                media = copy.deepcopy(self.medias[filename])
-                if media.get("status", "N/A") == "pause":
-                    raise DownloadPause("pasue")
+        if progress.get("info_dict") is None:
+            return
 
-                if media.get("status", "N/A") == "cancel":
-                    raise DownloadCancel("cancel")
+        if progress.get("info_dict").get("_filename") is None:
+            return
 
-            m["filename"] = filename
-            if media["size"] > 0:
-                m["size"] = human_size(media["size"])
+        filename = progress["info_dict"]["_filename"]
+        with self.mutex:
+            media = copy.deepcopy(self.medias[filename])
+            if media.get("status", "N/A") == "pause":
+                raise DownloadPause("pasue")
+
+            if media.get("status", "N/A") == "cancel":
+                raise DownloadCancel("cancel")
+
+        m["filename"] = filename
+        if media["size"] > 0:
+            m["size"] = human_size(media["size"])
+        else:
+            total_bytes_str = re.sub(
+                r"\u001b\[[0-9;]*m", "", progress.get("_total_bytes_str", "N/A")
+            )
+            total_bytes_estimate_str = re.sub(
+                r"\u001b\[[0-9;]*m",
+                "",
+                progress.get("_total_bytes_estimate_str", "N/A"),
+            )
+            if re.search(r"\d", total_bytes_str):
+                m["size"] = total_bytes_str
+            elif re.search(r"\d", total_bytes_estimate_str):
+                m["size"] = total_bytes_estimate_str
+
+        if progress.get("status") == "downloading":
+            subfiles = media["subfiles"]
+            ext = progress["info_dict"]["ext"]
+            if subfiles.get(ext) is None:
+                subfiles[ext] = {}
+            subfiles[ext]["downloaded_bytes"] = progress.get("downloaded_bytes")
+            total_downloaded_bytes = 0
+            for key in subfiles:
+                total_downloaded_bytes += subfiles[key].get("downloaded_bytes", 0)
+
+            m["downloaded_bytes"] = human_size(total_downloaded_bytes)
+
+            if progress.get("_speed_str"):
+                m["speed"] = re.sub(r"\u001b\[[0-9;]*m", "", progress.get("_speed_str"))
             else:
-                total_bytes_str = re.sub(
-                    r"\u001b\[[0-9;]*m", "", progress.get("_total_bytes_str", "N/A")
+                m["speed"] = "N/A"
+
+            if media["size"] > 0:
+                m["percent"] = f"{total_downloaded_bytes/media['size']*100:.2f}%"
+            else:
+                m["percent"] = re.sub(
+                    r"\u001b\[[0-9;]*m", "", progress.get("_percent_str")
                 )
-                total_bytes_estimate_str = re.sub(
-                    r"\u001b\[[0-9;]*m",
-                    "",
-                    progress.get("_total_bytes_estimate_str", "N/A"),
+
+            if progress.get("speed") and media["size"] > 0:
+                m["eta"] = human_time(
+                    (media["size"] - total_downloaded_bytes) / progress.get("speed")
                 )
-                if re.search(r"\d", total_bytes_str):
-                    m["size"] = total_bytes_str
-                elif re.search(r"\d", total_bytes_estimate_str):
-                    m["size"] = total_bytes_estimate_str
+            else:
+                m["eta"] = re.sub(
+                    r"\u001b\[[0-9;]*m", "", progress.get("_eta_str", "N/A")
+                )
 
-            if progress.get("status") == "downloading":
-                subfiles = media["subfiles"]
-                ext = progress["info_dict"]["ext"]
-                if subfiles.get(ext) is None:
-                    subfiles[ext] = {}
-                subfiles[ext]["downloaded_bytes"] = progress.get("downloaded_bytes")
-                total_downloaded_bytes = 0
-                for key in subfiles:
-                    total_downloaded_bytes += subfiles[key].get("downloaded_bytes", 0)
-                m["downloaded_bytes"] = total_downloaded_bytes
+            m["status"] = progress["status"]
 
-                if progress.get("_speed_str"):
-                    m["speed"] = re.sub(
-                        r"\u001b\[[0-9;]*m", "", progress.get("_speed_str")
-                    )
-                else:
-                    m["speed"] = "N/A"
-
-                if media["size"] > 0:
-                    m["percent"] = f"{total_downloaded_bytes/media['size']*100:.2f}%"
-                else:
-                    m["percent"] = re.sub(
-                        r"\u001b\[[0-9;]*m", "", progress.get("_percent_str")
-                    )
-
-                if progress.get("speed") and media["size"] > 0:
-                    m["eta"] = human_time(
-                        (media["size"] - total_downloaded_bytes) / progress.get("speed")
-                    )
-                else:
-                    m["eta"] = re.sub(
-                        r"\u001b\[[0-9;]*m", "", progress.get("_eta_str", "N/A")
-                    )
-
-                m["status"] = progress["status"]
-
-            elif progress["status"] == "finished":
-                m["status"] = "download_finished"
-                m["speed"] = "convert"
+        elif progress["status"] == "finished":
+            m["status"] = "download_finished"
+            m["speed"] = "convert"
 
         # print(m)
+        with self.mutex:
+            self.medias[filename]["percent"] = m.get("percent", "N/A")
+            self.medias[filename]["downloaded_bytes"] = m.get("downloaded_bytes", "N/A")
+            self.medias[filename]["status"] = m.get("status", "N/A")
+            self.medias[filename]["subfiles"] = media.get("subfiles", {})
+
         self.notify(m)
 
     def post_hook(self, fullname):
@@ -163,25 +185,37 @@ class Downloader(object):
             "format": f'wv[height>={media["quality"]}]+bestaudio/w[height>={media["quality"]}]/bv+ba/best',
         }
         with yt_dlp.YoutubeDL(params) as ydl:
-            playlist_info = ydl.extract_info(media["url"], download=False)
-            filename = ydl.prepare_filename(playlist_info)
+            try:
+                playlist_info = ydl.extract_info(media["url"], download=False)
+            except Exception as e:
+                print(e)
+                media["status"] = "error"
+                return
 
-            formats = playlist_info.get("requested_formats", [])
-            print(formats)
+            if playlist_info.get("_type", "N/A") == "url":
+                media["url"] = playlist_info["url"]
+                self.extract_info(media)
+                return
+            filename = ydl.prepare_filename(playlist_info)
+            formats = playlist_info.get("requested_formats")
+            if formats is None and "url" not in playlist_info:
+                media["status"] = "error"
+                return
             total_size = 0
             subfiles = {}
-            for fmt in formats:
-                print(fmt)
-                size = 0
-                try:
-                    size = int(fmt.get("filesize", "N/A"))
-                except (TypeError, ValueError):
+
+            if formats:
+                for fmt in formats:
+                    size = 0
                     try:
-                        size = int(fmt.get("filesize_approx", "N/A"))
+                        size = int(fmt["filesize"])
                     except (TypeError, ValueError):
-                        print("couldn't get size")
-                subfiles[fmt["ext"]] = {"size": size}
-                total_size += size
+                        try:
+                            size = int(fmt["filesize_approx"])
+                        except (TypeError, ValueError):
+                            print("couldn't get size")
+                    subfiles[fmt["ext"]] = {"size": size}
+                    total_size += size
 
             # filename = os.path.splitext(filename)[0]
             print("add filename: ", filename)
@@ -195,6 +229,8 @@ class Downloader(object):
                     "format": media["format"],
                     "status": media["status"],
                     "subfiles": subfiles,
+                    "downloaded_bytes": "0Mb",
+                    "percent": "0%",
                 }
 
     def handle_exception(self, future, filename):
@@ -251,12 +287,20 @@ class Downloader(object):
             )
             future.add_done_callback(handle_exception_with_args)
             print(f"submit: {media['url']}")
-        else:
+        elif media["status"] == "pause":
             message = {}
-            message["size"] = self.medias[media["filename"]]["size"]
+            message["size"] = human_size(self.medias[media["filename"]]["size"])
             message["filename"] = media["filename"]
-            message["percent"] = self.medias[media["filename"]]["size"]
+            message["percent"] = self.medias[media["filename"]]["percent"]
+            message["downloaded_bytes"] = self.medias[media["filename"]][
+                "downloaded_bytes"
+            ]
             message["status"] = "pause"
+            self.notify(message)
+        elif media["status"] == "error":
+            message = {}
+            message["status"] = "error"
+            message["info"] = "extract video info failed"
             self.notify(message)
 
     def cancel(self, media):
