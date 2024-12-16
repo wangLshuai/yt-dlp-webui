@@ -41,9 +41,8 @@ class DownloadCancel(Exception):
 
 
 class Downloader(object):
-    def __init__(self, notify, max_workers=5):
-        # self.listener_thread = threading.Thread(target=process_queue, args=(q, 5))
-        # self.listener_thread.start()
+    def __init__(self, notify, output, max_workers=5):
+        self.output_path = output
         self.notify = notify
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
         self.medias = {}
@@ -71,7 +70,7 @@ class Downloader(object):
         if progress.get("info_dict").get("_filename") is None:
             return
 
-        filename = progress["info_dict"]["_filename"]
+        filename = os.path.basename(progress["info_dict"]["_filename"])
         with self.mutex:
             media = copy.deepcopy(self.medias[filename])
             if media.get("status", "N/A") == "pause":
@@ -146,7 +145,6 @@ class Downloader(object):
         self.notify(m)
 
     def post_hook(self, fullname):
-        # basename = os.path.basename(fullname)
         filename = os.path.basename(fullname)
         m = {}
         m["filename"] = filename
@@ -165,7 +163,7 @@ class Downloader(object):
             "no_warnings": True,
             "noprogress": True,
             # 'simulate':True,
-            "outtmpl": "%(title)s.%(ext)s",
+            "outtmpl": f"{self.output_path}%(title)s.%(ext)s",
             "progress_hooks": [self.progress_hook],
             "post_hooks": [self.post_hook],
         }
@@ -197,6 +195,9 @@ class Downloader(object):
                 self.extract_info(media)
                 return
             filename = ydl.prepare_filename(playlist_info)
+            if filename.endswith(".NA"):
+                filename = filename[:-3] + ".mp4"
+
             formats = playlist_info.get("requested_formats")
             if formats is None and "url" not in playlist_info:
                 media["status"] = "error"
@@ -242,18 +243,19 @@ class Downloader(object):
             message["status"] = "pause"
             self.notify(message)
         except DownloadCancel:
-            base_path = Path(".")
-            files = base_path.glob(f"{filename}*")
-            for f in files:
-                os.remove(f)
+            self.remove(filename)
             with self.mutex:
                 self.medias.pop(filename)
             message["status"] = "cancel"
             self.notify(message)
         except Exception as e:
-            print("Caught an exception in callback:")
             message["status"] = "error"
-            message["info"] = traceback.format_exc()
+            xception_type = type(e).__name__
+            error_message = str(e)
+            message["info"] = (
+                f"{xception_type}: {error_message} video url [{self.medias[filename]['url']}]"
+            )
+            print(traceback.format_exc())
             print(message["info"])
             self.notify(message)
 
@@ -300,8 +302,17 @@ class Downloader(object):
         elif media["status"] == "error":
             message = {}
             message["status"] = "error"
-            message["info"] = "extract video info failed"
+            message["info"] = f"extract [{media['url']}] video info failed"
             self.notify(message)
+
+    def remove(self, filename):
+        print("remove:", filename)
+        base_path = Path(self.output_path)
+        filename = os.path.splitext(filename)[0]
+        files = base_path.glob(f"{filename}*")
+        for f in files:
+            print(f)
+            os.remove(f)
 
     def cancel(self, media):
         filename = media["filename"]
@@ -309,11 +320,7 @@ class Downloader(object):
             with self.mutex:
                 status = self.medias[filename].get("status", "N/A")
                 if status == "finished" or status == "pause":
-                    base_path = Path(".")
-                    files = base_path.glob(f"{filename}*")
-                    for f in files:
-                        print(f)
-                        os.remove(f)
+                    self.remove(filename)
                     self.medias.pop(filename)
                     message = {}
                     message["filename"] = filename

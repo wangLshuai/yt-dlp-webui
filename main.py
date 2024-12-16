@@ -1,15 +1,10 @@
 import asyncio
-import subprocess
-import aiohttp
 from aiohttp import web
 import os
 from functools import reduce
 from ytdlp import Downloader
-from queue import Queue, Empty
-import threading
-import time
-import re
 import logging
+import argparse
 
 
 async def index(request):
@@ -87,7 +82,7 @@ async def on_startup(app):
 
 progress_ws_list = []
 server_loop = None
-downloader = Downloader(sync_notify)
+downloader = None
 app = web.Application()
 # app.on_startup.append(on_startup)
 
@@ -96,17 +91,49 @@ app.router.add_get("/", index)
 app.router.add_get("/ws", websocket_progress)
 
 
-async def start_server():
+async def start_server(port):
     global server_loop
     server_loop = asyncio.get_running_loop()
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8080)
+    site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
-    logger.info("Server started at http://0.0.0.0:8080")
+    logger.info(f"Server started at http://0.0.0.0:{port}")
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="--output: the output directory (default: ./)"
+    )
+
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="./download/",
+        help="the output directory (default: ./download/)",
+    )
+
+    parser.add_argument(
+        "--port",
+        type=int,
+        default="5480",
+        help="the http listen port (default: 5480)",
+    )
+
+    args = parser.parse_args()
+
+    output_directory = args.output
+    if output_directory[-1] != "/":
+        output_directory += "/"
+
+    print(f"Output directory set to: {output_directory}")
+
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
+        print(f"Created directory: {output_directory}")
+
+    downloader = Downloader(sync_notify, output_directory)
+
     logger = logging.getLogger("yt-dlp-webui-logger")
     logger.setLevel(logging.INFO)
     console_handler = logging.StreamHandler()
@@ -120,7 +147,7 @@ if __name__ == "__main__":
     asyncio.set_event_loop(loop)
 
     try:
-        loop.run_until_complete(start_server())
+        loop.run_until_complete(start_server(args.port))
 
         loop.run_forever()
     except KeyboardInterrupt:
