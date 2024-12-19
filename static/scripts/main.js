@@ -36,7 +36,7 @@ function updateProgress(progressJson) {
   }
 
 
-  if (progressJson['size'] != null) {
+  if (progressJson['size'] != null && parseFloat(progressJson['size']) !== '0') {
     const size = progressItem.querySelector('.size');
     size.textContent = progressJson['size'];
   }

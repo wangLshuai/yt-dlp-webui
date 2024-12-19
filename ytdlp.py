@@ -311,7 +311,6 @@ class Downloader(object):
         filename = os.path.splitext(filename)[0]
         files = base_path.glob(f"{filename}*")
         for f in files:
-            print(f)
             os.remove(f)
 
     def cancel(self, media):
